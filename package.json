@@ -1,0 +1,57 @@
+{
+  "name": "@ls-stack/eprc",
+  "version": "0.14.4",
+  "license": "MIT",
+  "scripts": {
+    "test": "vitest run",
+    "test:ui": "vitest --ui",
+    "build": "pnpm test && pnpm run build:no-test",
+    "build:no-test": "tsup --minify --dts",
+    "pre-publish": "./scripts/check-if-is-sync.sh && pnpm build",
+    "npm-publish": "pnpm publish --access=public"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": "github:lucaslos/eslint-react-compiler",
+  "author": "Lucas Santos",
+  "main": "./dist/main.js",
+  "module": "./dist/main.mjs",
+  "exports": {
+    ".": {
+      "import": "./dist/main.mjs",
+      "require": "./dist/main.js"
+    }
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@babel/types": "^7.26.0",
+    "@ls-stack/utils": "^2.0.1",
+    "@types/babel__core": "^7.20.5",
+    "@types/eslint": "^9.6.1",
+    "@types/node": "^22.9.3",
+    "@typescript-eslint/parser": "^8.15.0",
+    "@typescript-eslint/rule-tester": "^8.15.0",
+    "@typescript-eslint/utils": "^8.15.0",
+    "@vitest/ui": "^2.1.5",
+    "babel-plugin-react-compiler": "^19.0.0-beta-a7bf2bd-20241110",
+    "escape-string-regexp": "^5.0.0",
+    "eslint": "^9.15.0",
+    "espree": "^10.3.0",
+    "esutils": "^2.0.3",
+    "tsm": "^2.3.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.5"
+  },
+  "dependencies": {
+    "@babel/core": "^7.26.0"
+  },
+  "peerDependencies": {
+    "babel-plugin-react-compiler": "*",
+    "eslint": "^9.9.1"
+  }
+}
