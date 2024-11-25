@@ -1,215 +1,329 @@
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+import { RuleTester } from '@typescript-eslint/rule-tester'
+import { ErrorSeverity } from 'babel-plugin-react-compiler'
+import { RuleTester as ESLintTester } from 'eslint'
+import { fileURLToPath } from 'node:url'
 import { reactCompiler } from '../src/rules/react-compiler'
-import { createTester } from './utils/createTester'
 
-// Helper function to normalize indentation
-function normalizeIndent(strings: TemplateStringsArray, ...values: any[]) {
-  const raw = String.raw({ raw: strings }, ...values)
-  const lines = raw.split('\n')
-  const firstNonEmptyLine = lines.find((line) => line.trim().length > 0)
-  if (!firstNonEmptyLine) return raw
-
-  const indent = firstNonEmptyLine.match(/^\s*/)?.[0].length || 0
-  return lines
-    .map((line) => line.slice(indent))
-    .join('\n')
-    .trim()
+/**
+ * A string template tag that removes padding from the left side of multi-line strings
+ * @param {Array} strings array of code strings (only one expected)
+ */
+function normalizeIndent(strings: TemplateStringsArray): string {
+  const codeLines = strings[0]!.split('\n')
+  const leftPadding = codeLines[1]!.match(/\s+/)![0]
+  return codeLines.map((line) => line.slice(leftPadding.length)).join('\n')
 }
 
-const tests = createTester(reactCompiler, {
-  defaultErrorId: 'default',
+type CompilerTestCases = {
+  valid: ESLintTester.ValidTestCase[]
+  invalid: ESLintTester.InvalidTestCase[]
+}
+
+const tests: CompilerTestCases = {
+  valid: [
+    {
+      name: 'Basic example',
+      code: normalizeIndent`
+        function foo(x, y) {
+          if (x) {
+            return foo(false, y);
+          }
+          return [y * 10];
+        }
+      `,
+    },
+    {
+      name: 'Violation with Flow suppression',
+      code: `
+      // Valid since error already suppressed with flow.
+      function useHookWithHook() {
+        if (cond) {
+          // $FlowFixMe[react-rule-hook]
+          useConditionalHook();
+        }
+      }
+    `,
+    },
+    {
+      name: 'Unsupported syntax',
+      code: normalizeIndent`
+        function foo(x) {
+          var y = 1;
+          return y * x;
+        }
+      `,
+    },
+    {
+      // OK because invariants are only meant for the compiler team's consumption
+      name: '[Invariant] Defined after use',
+      code: normalizeIndent`
+        function Component(props) {
+          let y = function () {
+            m(x);
+          };
+
+          let x = { a };
+          m(x);
+          return y;
+        }
+      `,
+    },
+    {
+      name: "Classes don't throw",
+      code: normalizeIndent`
+        class Foo {
+          #bar() {}
+        }
+      `,
+    },
+    {
+      // Don't report the issue if Flow already has
+      name: '[InvalidInput] Ref access during render',
+      code: normalizeIndent`
+        function Component(props) {
+          const ref = useRef(null);
+          // $FlowFixMe[react-rule-unsafe-ref]
+          const value = ref.current;
+          return value;
+        }
+      `,
+    },
+
+    // from ReactCompilerRuleTypescript-test.ts
+    {
+      name: 'Basic example',
+      code: normalizeIndent`
+        function Button(props) {
+          return null;
+        }
+      `,
+    },
+    {
+      name: 'Repro for hooks as normal values',
+      code: normalizeIndent`
+        function Button(props) {
+          const scrollview = React.useRef<ScrollView>(null);
+          return <Button thing={scrollview} />;
+        }
+      `,
+    },
+  ],
+  invalid: [
+    {
+      name: '[InvalidInput] Ref access during render',
+      code: normalizeIndent`
+        function Component(props) {
+          const ref = useRef(null);
+          const value = ref.current;
+          return value;
+        }
+      `,
+      errors: [
+        {
+          message:
+            'Ref values (the `current` property) may not be accessed during render. (https://react.dev/reference/react/useRef)',
+        },
+      ],
+    },
+    {
+      name: 'Reportable levels can be configured',
+      options: [{ reportableLevels: new Set([ErrorSeverity.Todo]) }],
+      code: normalizeIndent`
+        function Foo(x) {
+          var y = 1;
+          return <div>{y * x}</div>;
+        }`,
+      errors: [
+        {
+          message:
+            '(BuildHIR::lowerStatement) Handle var kinds in VariableDeclaration',
+        },
+      ],
+    },
+    {
+      name: '[InvalidReact] ESlint suppression',
+      // Indentation is intentionally weird so it doesn't add extra whitespace
+      code: normalizeIndent`
+  function Component(props) {
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+    return <div>{props.foo}</div>;
+  }`,
+      errors: [
+        {
+          message:
+            'React Compiler has skipped optimizing this component because one or more React ESLint rules were disabled. React Compiler only works when your components follow all the rules of React, disabling them may result in unexpected or incorrect behavior',
+          suggestions: [
+            {
+              desc: 'Remove the ESLint suppression and address the React error',
+              output: normalizeIndent`
+  function Component(props) {
+
+    return <div>{props.foo}</div>;
+  }`,
+            },
+          ],
+        },
+        {
+          message:
+            "Definition for rule 'react-hooks/rules-of-hooks' was not found.",
+        },
+      ],
+    },
+    {
+      name: 'Multiple diagnostics are surfaced',
+      options: [
+        {
+          reportableLevels: new Set([
+            ErrorSeverity.Todo,
+            ErrorSeverity.InvalidReact,
+          ]),
+        },
+      ],
+      code: normalizeIndent`
+        function Foo(x) {
+          var y = 1;
+          return <div>{y * x}</div>;
+        }
+        function Bar(props) {
+          props.a.b = 2;
+          return <div>{props.c}</div>
+        }`,
+      errors: [
+        {
+          message:
+            '(BuildHIR::lowerStatement) Handle var kinds in VariableDeclaration',
+        },
+        {
+          message:
+            'Mutating component props or hook arguments is not allowed. Consider using a local variable instead',
+        },
+      ],
+    },
+    {
+      name: 'Test experimental/unstable report all bailouts mode',
+      options: [
+        {
+          reportableLevels: new Set([ErrorSeverity.InvalidReact]),
+          __unstable_donotuse_reportAllBailouts: true,
+        },
+      ],
+      code: normalizeIndent`
+        function Foo(x) {
+          var y = 1;
+          return <div>{y * x}</div>;
+        }`,
+      errors: [
+        {
+          message:
+            '[ReactCompilerBailout] (BuildHIR::lowerStatement) Handle var kinds in VariableDeclaration (@:3:2)',
+        },
+      ],
+    },
+    {
+      name: "'use no forget' does not disable eslint rule",
+      code: normalizeIndent`
+        let count = 0;
+        function Component() {
+          'use no forget';
+          count = count + 1;
+          return <div>Hello world {count}</div>
+        }
+      `,
+      errors: [
+        {
+          message:
+            'Unexpected reassignment of a variable which was defined outside of the component. Components and hooks should be pure and side-effect free, but variable reassignment is a form of side-effect. If this variable is used in rendering, use useState instead. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#side-effects-must-run-outside-of-render)',
+        },
+      ],
+    },
+    {
+      name: "Unused 'use no forget' directive is reported when no errors are present on components",
+      code: normalizeIndent`
+        function Component() {
+          'use no forget';
+          return <div>Hello world</div>
+        }
+      `,
+      errors: [
+        {
+          message: "Unused 'use no forget' directive",
+          suggestions: [
+            {
+              desc: 'Remove the directive',
+              output:
+                // yuck
+                '\nfunction Component() {\n  \n  return <div>Hello world</div>\n}\n',
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: "Unused 'use no forget' directive is reported when no errors are present on non-components or hooks",
+      code: normalizeIndent`
+        function notacomponent() {
+          'use no forget';
+          return 1 + 1;
+        }
+      `,
+      errors: [
+        {
+          message: "Unused 'use no forget' directive",
+          suggestions: [
+            {
+              desc: 'Remove the directive',
+              output:
+                // yuck
+                '\nfunction notacomponent() {\n  \n  return 1 + 1;\n}\n',
+            },
+          ],
+        },
+      ],
+    },
+
+    // from ReactCompilerRuleTypescript-test.ts
+    {
+      name: 'Mutating useState value',
+      code: `
+        import { useState } from 'react';
+        function Component(props) {
+          // typescript syntax that hermes-parser doesn't understand yet
+          const x: \`foo\${1}\` = 'foo1';
+          const [state, setState] = useState({a: 0});
+          state.a = 1;
+          return <div>{props.foo}</div>;
+        }
+      `,
+      errors: [
+        {
+          message:
+            "Mutating a value returned from 'useState()', which should not be mutated. Use the setter function to update instead",
+          line: 7,
+        },
+      ],
+    },
+  ],
+}
+
+const eslintTester = new RuleTester({
+  languageOptions: {
+    parserOptions: {
+      tsconfigRootDir: fileURLToPath(new URL('./fixture', import.meta.url)),
+      project: './tsconfig.json',
+      ecmaFeatures: {
+        jsx: true,
+      },
+      ecmaVersion: 2020,
+      sourceType: 'module',
+    },
+  },
 })
 
-// Valid test cases
-tests.addValid(
-  'Basic example',
-  normalizeIndent`
-    function foo(x, y) {
-      if (x) {
-        return foo(false, y);
-      }
-      return [y * 10];
-    }
-  `,
-)
-
-tests.addValid(
-  'Violation with Flow suppression',
-  `
-    // Valid since error already suppressed with flow.
-    function useHookWithHook() {
-      if (cond) {
-        // $FlowFixMe[react-rule-hook]
-        useConditionalHook();
-      }
-    }
-  `,
-)
-
-tests.addValid(
-  'Basic example with component syntax',
-  normalizeIndent`
-    export default component HelloWorld(
-      text: string = 'Hello!',
-      onClick: () => void,
-    ) {
-      return <div onClick={onClick}>{text}</div>;
-    }
-  `,
-)
-
-// Add remaining valid test cases...
-tests.addValid(
-  'Unsupported syntax',
-  normalizeIndent`
-    function foo(x) {
-      var y = 1;
-      return y * x;
-    }
-  `,
-)
-
-tests.addValid(
-  '[Invariant] Defined after use',
-  normalizeIndent`
-    function Component(props) {
-      let y = function () {
-        m(x);
-      };
-
-      let x = { a };
-      m(x);
-      return y;
-    }
-  `,
-)
-
-tests.addValid(
-  "Classes don't throw",
-  normalizeIndent`
-    class Foo {
-      #bar() {}
-    }
-  `,
-)
-
-tests.addValid(
-  '[InvalidInput] Ref access during render with Flow suppression',
-  normalizeIndent`
-    function Component(props) {
-      const ref = useRef(null);
-      // $FlowFixMe[react-rule-unsafe-ref]
-      const value = ref.current;
-      return value;
-    }
-  `,
-)
-
-// Invalid test cases
-tests.addInvalid(
-  '[InvalidInput] Ref access during render',
-  normalizeIndent`
-    function Component(props) {
-      const ref = useRef(null);
-      const value = ref.current;
-      return value;
-    }
-  `,
-  [
-    {
-      message:
-        'Ref values (the `current` property) may not be accessed during render. (https://react.dev/reference/react/useRef)',
-    },
-  ],
-)
-
-tests.addInvalid(
-  'Reportable levels can be configured',
-  normalizeIndent`
-    function Foo(x) {
-      var y = 1;
-      return <div>{y * x}</div>;
-    }
-  `,
-  [
-    {
-      message:
-        '(BuildHIR::lowerStatement) Handle var kinds in VariableDeclaration',
-    },
-  ],
-  {
-    options: [{ reportableLevels: new Set(['Todo']) }],
-  },
-)
-
-// Add remaining invalid test cases...
-tests.addInvalid(
-  '[InvalidReact] ESlint suppression',
-  normalizeIndent`
-    function Component(props) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-      return <div>{props.foo}</div>;
-    }
-  `,
-  [
-    {
-      message:
-        'React Compiler has skipped optimizing this component because one or more React ESLint rules were disabled. React Compiler only works when your components follow all the rules of React, disabling them may result in unexpected or incorrect behavior',
-    },
-    {
-      message:
-        "Definition for rule 'react-hooks/rules-of-hooks' was not found.",
-    },
-  ],
-)
-
-tests.addInvalid(
-  'Multiple diagnostics are surfaced',
-  normalizeIndent`
-    function Foo(x) {
-      var y = 1;
-      return <div>{y * x}</div>;
-    }
-    function Bar(props) {
-      props.a.b = 2;
-      return <div>{props.c}</div>
-    }
-  `,
-  [
-    {
-      message:
-        '(BuildHIR::lowerStatement) Handle var kinds in VariableDeclaration',
-    },
-    {
-      message:
-        'Mutating component props or hook arguments is not allowed. Consider using a local variable instead',
-    },
-  ],
-  {
-    options: [
-      {
-        reportableLevels: new Set(['Todo', 'InvalidReact']),
-      },
-    ],
-  },
-)
-
-// Add remaining invalid test cases...
-tests.addInvalid(
-  "'use no forget' does not disable eslint rule",
-  normalizeIndent`
-    let count = 0;
-    function Component() {
-      'use no forget';
-      count = count + 1;
-      return <div>Hello world {count}</div>
-    }
-  `,
-  [
-    {
-      message:
-        'Unexpected reassignment of a variable which was defined outside of the component. Components and hooks should be pure and side-effect free, but variable reassignment is a form of side-effect. If this variable is used in rendering, use useState instead. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#side-effects-must-run-outside-of-render)',
-    },
-  ],
-)
-
-tests.run()
+eslintTester.run('react-compiler', reactCompiler.rule, tests as any)

@@ -6,18 +6,17 @@
  */
 
 import { transformFromAstSync } from '@babel/core'
-// @ts-expect-error: no types available
-import PluginProposalPrivateMethods from '@babel/plugin-proposal-private-methods'
 import type { SourceLocation as BabelSourceLocation } from '@babel/types'
-import { ESLintUtils } from '@typescript-eslint/utils'
+import { ESLintUtils, TSESTree } from '@typescript-eslint/utils'
+import { ReportDescriptor } from '@typescript-eslint/utils/ts-eslint'
 import BabelPluginReactCompiler, {
   CompilerErrorDetailOptions,
   CompilerSuggestionOperation,
   ErrorSeverity,
   OPT_OUT_DIRECTIVES,
+  type PluginOptions,
   parsePluginOptions,
   validateEnvironmentConfig,
-  type PluginOptions,
 } from 'babel-plugin-react-compiler'
 import { Logger } from 'babel-plugin-react-compiler/src/Entrypoint'
 import type { Rule } from 'eslint'
@@ -26,7 +25,7 @@ type CompilerErrorDetailWithLoc = Omit<CompilerErrorDetailOptions, 'loc'> & {
   loc: BabelSourceLocation
 }
 
-function assertExhaustive(_: never, errorMsg: string): never {
+function assertExhaustive(_: any, errorMsg: string): never {
   throw new Error(errorMsg)
 }
 
@@ -116,10 +115,12 @@ type Options = [
   {
     reportableLevels?: Set<ErrorSeverity>
     __unstable_donotuse_reportAllBailouts?: boolean
+    babelPlugins?: (string | [string, any])[]
+    babelParserPlugins?: string[]
   },
 ]
 
-const rule = createRule<Options, string>({
+const rule = createRule<Options, 'default'>({
   name,
   defaultOptions: [{}],
   meta: {
@@ -131,9 +132,27 @@ const rule = createRule<Options, string>({
     hasSuggestions: true,
     // validation is done at runtime with zod
     schema: [{ type: 'object', additionalProperties: true }],
-    messages: {},
+    messages: {
+      default: '{{message}}',
+    },
   },
   create(context) {
+    function report(params: {
+      message: string
+      loc: NonNullable<ReportDescriptor<'default'>['loc']>
+      fix?: ReportDescriptor<'default'>['fix']
+      suggest?: Rule.SuggestionReportDescriptor[]
+    }) {
+      const { message, loc, fix, suggest } = params
+      context.report({
+        messageId: 'default',
+        data: { message },
+        loc,
+        fix,
+        suggest: suggest as any,
+      })
+    }
+
     // Compat with older versions of eslint
     const sourceCode = context.sourceCode?.text ?? context.getSourceCode().text
     const filename = context.filename ?? context.getFilename()
@@ -167,9 +186,9 @@ const rule = createRule<Options, string>({
       ...parsePluginOptions(userOpts),
       ...COMPILER_OPTIONS,
     }
-    const userLogger: Logger | null = options.logger
+    const userLogger: Logger | null = options.logger ?? null
     options.logger = {
-      logEvent: (filename, event): void => {
+      logEvent: (filename: string, event: any): void => {
         userLogger?.logEvent(filename, event)
         if (event.kind === 'CompileError') {
           shouldReportUnusedOptOutDirective = false
@@ -197,14 +216,14 @@ const rule = createRule<Options, string>({
                 column: sourceCode.split(
                   /\r?\n|\r|\n/g,
                   event.fnLoc.start.line,
-                )[event.fnLoc.start.line - 1].length,
+                )[event.fnLoc.start.line - 1]!.length,
               }
             }
             const firstLineLoc = {
               start: event.fnLoc.start,
               end: endLoc,
             }
-            context.report({
+            report({
               message: `[ReactCompilerBailout] ${detail.reason}${locStr}`,
               loc: firstLineLoc,
               suggest,
@@ -226,7 +245,7 @@ const rule = createRule<Options, string>({
               ? event.fnLoc
               : detail.loc
           if (loc != null) {
-            context.report({
+            report({
               message: detail.reason,
               loc,
               suggest,
@@ -269,21 +288,33 @@ const rule = createRule<Options, string>({
         babelAST = babelParse(sourceCode, {
           filename,
           sourceType: 'unambiguous',
-          plugins: ['typescript', 'jsx'],
+          plugins: [
+            ...(context.options[0]?.babelParserPlugins ?? []),
+            'typescript',
+            'jsx',
+          ],
         })
-      } catch {
-        /* empty */
+      } catch (err) {
+        report({
+          message: `Failed to parse file: ${
+            err instanceof Error ? err.message : err
+          }`,
+          loc: {
+            start: { line: 0, column: 0 },
+            end: { line: 0, column: 0 },
+          },
+        })
       }
     }
 
     if (babelAST != null) {
       try {
-        transformFromAstSync(babelAST, sourceCode, {
+        const test = transformFromAstSync(babelAST, sourceCode, {
           filename,
           highlightCode: false,
           retainLines: true,
           plugins: [
-            [PluginProposalPrivateMethods, { loose: true }],
+            ...(context.options[0]?.babelPlugins ?? []),
             [BabelPluginReactCompiler, options],
           ],
           sourceType: 'module',
@@ -295,7 +326,7 @@ const rule = createRule<Options, string>({
       }
     }
 
-    function reportUnusedOptOutDirective(stmt) {
+    function reportUnusedOptOutDirective(stmt: TSESTree.Statement) {
       if (
         stmt.type === 'ExpressionStatement' &&
         stmt.expression.type === 'Literal' &&
@@ -303,14 +334,14 @@ const rule = createRule<Options, string>({
         OPT_OUT_DIRECTIVES.has(stmt.expression.value) &&
         stmt.loc != null
       ) {
-        context.report({
+        report({
           message: `Unused '${stmt.expression.value}' directive`,
           loc: stmt.loc,
           suggest: [
             {
               desc: 'Remove the directive',
               fix(fixer) {
-                return fixer.remove(stmt)
+                return fixer.remove(stmt as any)
               },
             },
           ],

@@ -1,6 +1,6 @@
 {
   "name": "@ls-stack/eprc",
-  "version": "0.14.4",
+  "version": "0.0.0",
   "license": "MIT",
   "scripts": {
     "test": "vitest run",
@@ -27,6 +27,7 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
+    "@babel/plugin-proposal-explicit-resource-management": "^7.25.9",
     "@babel/types": "^7.26.0",
     "@ls-stack/utils": "^2.0.1",
     "@types/babel__core": "^7.20.5",
