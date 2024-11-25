@@ -11,6 +11,15 @@ importers:
       '@babel/core':
         specifier: ^7.26.0
         version: 7.26.0
+      '@typescript-eslint/utils':
+        specifier: ^8.15.0
+        version: 8.15.0(eslint@9.15.0)(typescript@5.7.2)
+      espree:
+        specifier: ^10.3.0
+        version: 10.3.0
+      esutils:
+        specifier: ^2.0.3
+        version: 2.0.3
     devDependencies:
       '@babel/plugin-proposal-explicit-resource-management':
         specifier: ^7.25.9
@@ -36,9 +45,6 @@ importers:
       '@typescript-eslint/rule-tester':
         specifier: ^8.15.0
         version: 8.15.0(eslint@9.15.0)(typescript@5.7.2)
-      '@typescript-eslint/utils':
-        specifier: ^8.15.0
-        version: 8.15.0(eslint@9.15.0)(typescript@5.7.2)
       '@vitest/ui':
         specifier: ^2.1.5
         version: 2.1.5(vitest@2.1.5)
@@ -51,12 +57,6 @@ importers:
       eslint:
         specifier: ^9.15.0
         version: 9.15.0
-      espree:
-        specifier: ^10.3.0
-        version: 10.3.0
-      esutils:
-        specifier: ^2.0.3
-        version: 2.0.3
       tsm:
         specifier: ^2.3.0
         version: 2.3.0

@@ -322,7 +322,15 @@ const rule = createRule<Options, 'default'>({
           babelrc: false,
         })
       } catch (err) {
-        /* errors handled by injected logger */
+        report({
+          message: `Babel failed to parse file: ${
+            err instanceof Error ? err.message : err
+          }`,
+          loc: {
+            start: { line: 0, column: 0 },
+            end: { line: 0, column: 0 },
+          },
+        })
       }
     }
 
