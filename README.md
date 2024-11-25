@@ -20,3 +20,7 @@ export default {
   },
 }
 ```
+
+## Files to check for changes:
+
+https://github.com/facebook/react/blob/main/compiler/packages/eslint-plugin-react-compiler/src/rules/ReactCompilerRule.ts
