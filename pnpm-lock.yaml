@@ -27,6 +27,9 @@ importers:
       '@babel/types':
         specifier: ^7.26.0
         version: 7.26.0
+      '@ls-stack/babel-plugin-react-compiler-unsupported-syntax':
+        specifier: ^0.2.3
+        version: 0.2.3(@babel/core@7.26.0)
       '@ls-stack/utils':
         specifier: ^2.0.1
         version: 2.0.1
@@ -521,6 +524,12 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.25':
     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
+
+  '@ls-stack/babel-plugin-react-compiler-unsupported-syntax@0.2.3':
+    resolution: {integrity: sha512-BALhyyl7NEfsbjAmXG1SYLREJzom3oSbigigCl/sb4Xl1Jkd0ZCsJG7KuxOZH3fSHCf5RUKzTJkgEsNs12CL9A==}
+    engines: {node: '>=21.5.0'}
+    peerDependencies:
+      '@babel/core': ^7.0.0-0
 
   '@ls-stack/utils@2.0.1':
     resolution: {integrity: sha512-iy/iGpZjEzASD5fmlDMB9CIrg0lhG5y1KiLf0T7QbuQgD7BJ2qcA8A2y7pdBbPATw72atJKYUPFvCiIRQz1G7w==}
@@ -2027,6 +2036,10 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
+
+  '@ls-stack/babel-plugin-react-compiler-unsupported-syntax@0.2.3(@babel/core@7.26.0)':
+    dependencies:
+      '@babel/core': 7.26.0
 
   '@ls-stack/utils@2.0.1': {}
 

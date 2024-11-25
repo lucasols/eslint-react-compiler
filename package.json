@@ -22,6 +22,7 @@
   "devDependencies": {
     "@babel/plugin-proposal-explicit-resource-management": "^7.25.9",
     "@babel/types": "^7.26.0",
+    "@ls-stack/babel-plugin-react-compiler-unsupported-syntax": "^0.2.3",
     "@ls-stack/utils": "^2.0.1",
     "@types/babel__core": "^7.20.5",
     "@types/eslint": "^9.6.1",
@@ -39,10 +40,10 @@
     "vitest": "^2.1.5"
   },
   "dependencies": {
-    "esutils": "^2.0.3",
-    "espree": "^10.3.0",
+    "@babel/core": "^7.26.0",
     "@typescript-eslint/utils": "^8.15.0",
-    "@babel/core": "^7.26.0"
+    "espree": "^10.3.0",
+    "esutils": "^2.0.3"
   },
   "peerDependencies": {
     "babel-plugin-react-compiler": "*",

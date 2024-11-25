@@ -29,6 +29,7 @@ const eslintTester = new RuleTester({
 eslintTester.run('react-compiler', reactCompiler.rule, {
   valid: [
     {
+      name: 'using not throws parse error',
       code: normalizeIndent`
         function Button(props) {
           function onClick() {
@@ -44,6 +45,22 @@ eslintTester.run('react-compiler', reactCompiler.rule, {
         {
           babelParserPlugins: ['explicitResourceManagement'],
           babelPlugins: ['@babel/plugin-proposal-explicit-resource-management'],
+        },
+      ],
+    },
+    {
+      name: 'Tagged template literal should not report errors',
+      code: normalizeIndent`
+        function Button(props) {
+          return <Button>{tag\`text \${props.text}\`}</Button>;
+        }
+      `,
+      options: [
+        {
+          __unstable_donotuse_reportAllBailouts: true,
+          babelPlugins: [
+            '@ls-stack/babel-plugin-react-compiler-unsupported-syntax',
+          ],
         },
       ],
     },
