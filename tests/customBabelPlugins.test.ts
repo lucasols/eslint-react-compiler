@@ -31,13 +31,13 @@ eslintTester.run('react-compiler', reactCompiler.rule, {
     {
       code: normalizeIndent`
         function Button(props) {
-          function scrollview() {
+          function onClick() {
             using x = foo();
 
             return x;
           }
 
-          return <Button thing={scrollview} />;
+          return <Button thing={onClick} />;
         }
       `,
       options: [
@@ -48,5 +48,35 @@ eslintTester.run('react-compiler', reactCompiler.rule, {
       ],
     },
   ],
-  invalid: [],
+  invalid: [
+    {
+      name: 'Errors are not suppressed',
+      code: normalizeIndent`
+        function Component(props) {
+          const ref = useRef(null);
+          const value = ref.current;
+
+          function onClick() {
+            using x = foo();
+
+            return x;
+          }
+
+          return <Button thing={onClick} value={value} />;
+        }
+      `,
+      errors: [
+        {
+          message:
+            'Ref values (the `current` property) may not be accessed during render. (https://react.dev/reference/react/useRef)',
+        },
+      ] as any,
+      options: [
+        {
+          babelParserPlugins: ['explicitResourceManagement'],
+          babelPlugins: ['@babel/plugin-proposal-explicit-resource-management'],
+        },
+      ],
+    },
+  ],
 })
