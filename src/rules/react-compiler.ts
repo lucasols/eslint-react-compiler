@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { parse as babelParse, transformFromAstSync } from '@babel/core'
+import { transformFromAstSync } from '@babel/core'
 import type { SourceLocation as BabelSourceLocation } from '@babel/types'
 import { ESLintUtils, TSESTree } from '@typescript-eslint/utils'
 import { ReportDescriptor } from '@typescript-eslint/utils/ts-eslint'
@@ -284,6 +284,7 @@ const rule = createRule<Options, 'default'>({
     let babelAST
     if (filename.endsWith('.tsx') || filename.endsWith('.ts')) {
       try {
+        const { parse: babelParse } = require('@babel/parser')
         babelAST = babelParse(sourceCode, {
           filename,
           sourceType: 'unambiguous',
