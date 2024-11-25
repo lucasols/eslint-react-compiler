@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup'
 
 export default defineConfig({
-  entry: ['src/extended-lint.ts'],
+  entry: ['src/main.ts'],
   clean: true,
   format: ['esm', 'cjs'],
 })
