@@ -6,7 +6,7 @@
  */
 
 import { transformFromAstSync } from '@babel/core'
-// @ts-expect-error: no types available
+import type { ParseResult } from '@babel/parser'
 import { parse as babelParse } from '@babel/parser'
 import { File } from '@babel/types'
 import BabelPluginReactCompiler, {
@@ -15,8 +15,6 @@ import BabelPluginReactCompiler, {
   validateEnvironmentConfig,
   type PluginOptions,
 } from 'babel-plugin-react-compiler'
-// @ts-expect-error: no types available
-import type { ParseResult } from '@babel/parser'
 
 const COMPILER_OPTIONS: PluginOptions = {
   noEmit: true,
@@ -93,7 +91,7 @@ export function runReactCompiler({
       babelAST = babelParse(sourceCode.text, {
         sourceFilename: filename,
         sourceType: 'unambiguous',
-        plugins: [...(babelParserPlugins ?? []), 'typescript', 'jsx'],
+        plugins: [...(babelParserPlugins ?? []), 'typescript', 'jsx'] as any,
       })
     } catch {
       /* empty */
@@ -102,14 +100,11 @@ export function runReactCompiler({
 
   if (babelAST != null) {
     try {
-      transformFromAstSync(babelAST, sourceCode.text, {
+      transformFromAstSync(babelAST as any, sourceCode.text, {
         filename,
         highlightCode: false,
         retainLines: true,
-        plugins: [
-          ...(babelPlugins ?? []),
-          [BabelPluginReactCompiler, options],
-        ],
+        plugins: [...(babelPlugins ?? []), [BabelPluginReactCompiler, options]],
         sourceType: 'module',
         configFile: false,
         babelrc: false,
