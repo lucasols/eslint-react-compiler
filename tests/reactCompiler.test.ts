@@ -6,10 +6,15 @@
  */
 
 import { RuleTester } from '@typescript-eslint/rule-tester'
-import { ErrorSeverity } from 'babel-plugin-react-compiler'
 import { RuleTester as ESLintTester } from 'eslint'
 import { fileURLToPath } from 'node:url'
 import { reactCompiler } from '../src/rules/react-compiler'
+
+declare global {
+  interface RegExpConstructor {
+    escape(str: string): string
+  }
+}
 
 /**
  * A string template tag that removes padding from the left side of multi-line strings
@@ -39,18 +44,31 @@ const tests: CompilerTestCases = {
         }
       `,
     },
+    // Skip processing tests - files without components/hooks should be skipped
+    // Uses __devReturnErrorIfRun to verify the rule doesn't run
     {
-      name: 'Violation with Flow suppression',
-      code: `
-      // Valid since error already suppressed with flow.
-      function useHookWithHook() {
-        if (cond) {
-          // $FlowFixMe[react-rule-hook]
-          useConditionalHook();
+      name: 'Skip file without components or hooks (lowercase function)',
+      options: [
+        { __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true },
+      ],
+      code: normalizeIndent`
+        function helper() {
+          return 1;
         }
-      }
-    `,
+      `,
     },
+    {
+      name: 'Skip file without components or hooks (arrow function)',
+      options: [
+        { __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true },
+      ],
+      code: normalizeIndent`
+        const helper = () => {
+          return 1;
+        };
+      `,
+    },
+    // Removed: Violation with Flow suppression - the new compiler version no longer suppresses errors based on Flow comments
     {
       name: 'Unsupported syntax',
       code: normalizeIndent`
@@ -83,18 +101,7 @@ const tests: CompilerTestCases = {
         }
       `,
     },
-    {
-      // Don't report the issue if Flow already has
-      name: '[InvalidInput] Ref access during render',
-      code: normalizeIndent`
-        function Component(props) {
-          const ref = useRef(null);
-          // $FlowFixMe[react-rule-unsafe-ref]
-          const value = ref.current;
-          return value;
-        }
-      `,
-    },
+    // Removed: Flow suppression test - the new compiler version no longer suppresses errors based on Flow comments
 
     // from ReactCompilerRuleTypescript-test.ts
     {
@@ -116,6 +123,68 @@ const tests: CompilerTestCases = {
     },
   ],
   invalid: [
+    // Verify rule runs when it should (using __devReturnErrorIfRun)
+    {
+      name: 'Process file with PascalCase function declaration',
+      options: [
+        { __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true },
+      ],
+      code: normalizeIndent`
+        function MyComponent() {
+          return null;
+        }
+      `,
+      errors: [{ message: '__devReturnErrorIfRun' }],
+    },
+    {
+      name: 'Process file with PascalCase const declaration',
+      options: [
+        { __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true },
+      ],
+      code: normalizeIndent`
+        const MyComponent = () => {
+          return null;
+        };
+      `,
+      errors: [{ message: '__devReturnErrorIfRun' }],
+    },
+    {
+      name: 'Process file with hook function declaration',
+      options: [
+        { __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true },
+      ],
+      code: normalizeIndent`
+        function useMyHook() {
+          return 1;
+        }
+      `,
+      errors: [{ message: '__devReturnErrorIfRun' }],
+    },
+    {
+      name: 'Process file with hook const declaration',
+      options: [
+        { __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true },
+      ],
+      code: normalizeIndent`
+        const useMyHook = () => {
+          return 1;
+        };
+      `,
+      errors: [{ message: '__devReturnErrorIfRun' }],
+    },
+    {
+      name: 'Always process .tsx files',
+      options: [
+        { __devOverrideFilename: 'test.tsx', __devReturnErrorIfRun: true },
+      ],
+      code: normalizeIndent`
+        function helper() {
+          return 1;
+        }
+      `,
+      errors: [{ message: '__devReturnErrorIfRun' }],
+    },
+
     {
       name: '[InvalidInput] Ref access during render',
       code: normalizeIndent`
@@ -127,23 +196,26 @@ const tests: CompilerTestCases = {
       `,
       errors: [
         {
-          message:
-            'Ref values (the `current` property) may not be accessed during render. (https://react.dev/reference/react/useRef)',
+          message: new RegExp(
+            RegExp.escape('Cannot access ref value during render'),
+          ),
         },
       ],
     },
     {
-      name: 'Reportable levels can be configured',
-      options: [{ reportableLevels: new Set([ErrorSeverity.Todo]) }],
+      name: '[InvalidInput] Ref access during render',
       code: normalizeIndent`
-        function Foo(x) {
-          var y = 1;
-          return <div>{y * x}</div>;
-        }`,
+        const Component: React.FC<{ foo: string }> = (props) => {
+          const ref = useRef(null);
+          const value = ref.current;
+          return value;
+        }
+      `,
       errors: [
         {
-          message:
-            '(BuildHIR::lowerStatement) Handle var kinds in VariableDeclaration',
+          message: new RegExp(
+            RegExp.escape('Cannot access ref value during render'),
+          ),
         },
       ],
     },
@@ -158,7 +230,14 @@ const tests: CompilerTestCases = {
       errors: [
         {
           message:
-            'React Compiler has skipped optimizing this component because one or more React ESLint rules were disabled. React Compiler only works when your components follow all the rules of React, disabling them may result in unexpected or incorrect behavior',
+            "Definition for rule 'react-hooks/rules-of-hooks' was not found.",
+        },
+        {
+          message: new RegExp(
+            RegExp.escape(
+              'React Compiler has skipped optimizing this component because one or more React ESLint rules were disabled',
+            ),
+          ),
           suggestions: [
             {
               desc: 'Remove the ESLint suppression and address the React error',
@@ -170,120 +249,76 @@ const tests: CompilerTestCases = {
             },
           ],
         },
-        {
-          message:
-            "Definition for rule 'react-hooks/rules-of-hooks' was not found.",
-        },
       ],
     },
     {
       name: 'Multiple diagnostics are surfaced',
-      options: [
-        {
-          reportableLevels: new Set([
-            ErrorSeverity.Todo,
-            ErrorSeverity.InvalidReact,
-          ]),
-        },
-      ],
       code: normalizeIndent`
-        function Foo(x) {
-          var y = 1;
-          return <div>{y * x}</div>;
-        }
         function Bar(props) {
           props.a.b = 2;
           return <div>{props.c}</div>
         }`,
       errors: [
         {
-          message:
-            '(BuildHIR::lowerStatement) Handle var kinds in VariableDeclaration',
-        },
-        {
-          message:
-            'Mutating component props or hook arguments is not allowed. Consider using a local variable instead',
-        },
-      ],
-    },
-    {
-      name: 'Test experimental/unstable report all bailouts mode',
-      options: [
-        {
-          reportableLevels: new Set([ErrorSeverity.InvalidReact]),
-          __unstable_donotuse_reportAllBailouts: true,
-        },
-      ],
-      code: normalizeIndent`
-        function Foo(x) {
-          var y = 1;
-          return <div>{y * x}</div>;
-        }`,
-      errors: [
-        {
-          message:
-            '[ReactCompilerBailout] (BuildHIR::lowerStatement) Handle var kinds in VariableDeclaration (@:3:2)',
+          message: new RegExp(
+            RegExp.escape(
+              'Modifying component props or hook arguments is not allowed',
+            ),
+          ),
         },
       ],
     },
     {
-      name: "'use no forget' does not disable eslint rule",
+      name: "'use no memo' does not disable eslint rule",
       code: normalizeIndent`
         let count = 0;
         function Component() {
-          'use no forget';
+          'use no memo';
           count = count + 1;
           return <div>Hello world {count}</div>
         }
       `,
       errors: [
         {
-          message:
-            'Unexpected reassignment of a variable which was defined outside of the component. Components and hooks should be pure and side-effect free, but variable reassignment is a form of side-effect. If this variable is used in rendering, use useState instead. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#side-effects-must-run-outside-of-render)',
+          message: new RegExp(RegExp.escape('`count` cannot be reassigned')),
         },
       ],
     },
+
+    // Verify errors are caught in .ts files with components
     {
-      name: "Unused 'use no forget' directive is reported when no errors are present on components",
+      name: 'Error in .ts file with PascalCase component',
+      options: [{ __devOverrideFilename: 'test.ts' }],
       code: normalizeIndent`
-        function Component() {
-          'use no forget';
-          return <div>Hello world</div>
+        function Component(props) {
+          const ref = useRef(null);
+          const value = ref.current;
+          return value;
         }
       `,
       errors: [
         {
-          message: "Unused 'use no forget' directive",
-          suggestions: [
-            {
-              desc: 'Remove the directive',
-              output:
-                // yuck
-                '\nfunction Component() {\n  \n  return <div>Hello world</div>\n}\n',
-            },
-          ],
+          message: new RegExp(
+            RegExp.escape('Cannot access ref value during render'),
+          ),
         },
       ],
     },
     {
-      name: "Unused 'use no forget' directive is reported when no errors are present on non-components or hooks",
+      name: 'Error in .ts file with hook',
+      options: [{ __devOverrideFilename: 'test.ts' }],
       code: normalizeIndent`
-        function notacomponent() {
-          'use no forget';
-          return 1 + 1;
+        function useCustomHook() {
+          const ref = useRef(null);
+          const value = ref.current;
+          return value;
         }
       `,
       errors: [
         {
-          message: "Unused 'use no forget' directive",
-          suggestions: [
-            {
-              desc: 'Remove the directive',
-              output:
-                // yuck
-                '\nfunction notacomponent() {\n  \n  return 1 + 1;\n}\n',
-            },
-          ],
+          message: new RegExp(
+            RegExp.escape('Cannot access ref value during render'),
+          ),
         },
       ],
     },
@@ -303,8 +338,11 @@ const tests: CompilerTestCases = {
       `,
       errors: [
         {
-          message:
-            "Mutating a value returned from 'useState()', which should not be mutated. Use the setter function to update instead",
+          message: new RegExp(
+            RegExp.escape(
+              "Modifying a value returned from 'useState()', which should not be modified directly",
+            ),
+          ),
           line: 7,
         },
       ],

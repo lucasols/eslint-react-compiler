@@ -57,7 +57,6 @@ eslintTester.run('react-compiler', reactCompiler.rule, {
       `,
       options: [
         {
-          __unstable_donotuse_reportAllBailouts: true,
           babelPlugins: [
             '@ls-stack/babel-plugin-react-compiler-unsupported-syntax',
           ],
@@ -84,8 +83,9 @@ eslintTester.run('react-compiler', reactCompiler.rule, {
       `,
       errors: [
         {
-          message:
-            'Ref values (the `current` property) may not be accessed during render. (https://react.dev/reference/react/useRef)',
+          message: new RegExp(
+            RegExp.escape('Cannot access ref value during render'),
+          ),
         },
       ] as any,
       options: [
