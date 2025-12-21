@@ -80,6 +80,8 @@ type Options = [
      * Defaults to empty (report all levels).
      */
     ignoreReportLevels?: ('Error' | 'Warning' | 'Hint' | 'Off')[]
+    __devOverrideFilename?: string
+    __devReturnErrorIfRun?: boolean
   },
 ]
 
@@ -96,6 +98,8 @@ function getReactCompilerResult(
     babelParserPlugins,
     babelPlugins,
     ignoreReportLevels: _,
+    __devOverrideFilename: __,
+    __devReturnErrorIfRun: ___,
     ...userOpts
   } = opts
 
@@ -109,6 +113,35 @@ function getReactCompilerResult(
 }
 
 type MessageIds = 'default' | 'suggestion'
+
+// Loose match for PascalCase identifiers (potential React components)
+const HAS_COMPONENT_REGEX = /\b[A-Z][a-zA-Z0-9]*\s*[=(]/
+
+// Loose match for hook functions (useX pattern)
+const HAS_HOOK_REGEX = /\buse[A-Z]/
+
+function shouldProcessFile(sourceText: string): boolean {
+  // Check for react imports
+  if (sourceText.includes('react')) {
+    return true
+  }
+
+  // Check for PascalCase function declarations (React components)
+  // Matches: function ComponentName or (const|let|var) ComponentName =
+  const hasPascalCaseFunction = HAS_COMPONENT_REGEX.test(sourceText)
+  if (hasPascalCaseFunction) {
+    return true
+  }
+
+  // Check for hook functions (useX pattern)
+  // Matches: function useX or (const|let|var) useX =
+  const hasHook = HAS_HOOK_REGEX.test(sourceText)
+  if (hasHook) {
+    return true
+  }
+
+  return false
+}
 
 const rule = createRule<Options, MessageIds>({
   name,
@@ -128,6 +161,27 @@ const rule = createRule<Options, MessageIds>({
   },
   create(context) {
     const userOpts = context.options[0] ?? {}
+    const filename =
+      userOpts.__devOverrideFilename ??
+      context.filename ??
+      context.getFilename()
+
+    if (!filename.endsWith('.tsx')) {
+      const sourceCode = context.sourceCode ?? context.getSourceCode()
+      if (!shouldProcessFile(sourceCode.getText())) {
+        return {}
+      }
+    }
+
+    if (userOpts.__devReturnErrorIfRun) {
+      context.report({
+        messageId: 'default',
+        data: { message: '__devReturnErrorIfRun' },
+        loc: { line: 1, column: 0 },
+      })
+      return {}
+    }
+
     const ignoreReportLevels = new Set(userOpts.ignoreReportLevels ?? [])
 
     const result = getReactCompilerResult(context)

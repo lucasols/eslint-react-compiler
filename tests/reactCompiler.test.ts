@@ -44,6 +44,26 @@ const tests: CompilerTestCases = {
         }
       `,
     },
+    // Skip processing tests - files without components/hooks should be skipped
+    // Uses __devReturnErrorIfRun to verify the rule doesn't run
+    {
+      name: 'Skip file without components or hooks (lowercase function)',
+      options: [{ __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true }],
+      code: normalizeIndent`
+        function helper() {
+          return 1;
+        }
+      `,
+    },
+    {
+      name: 'Skip file without components or hooks (arrow function)',
+      options: [{ __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true }],
+      code: normalizeIndent`
+        const helper = () => {
+          return 1;
+        };
+      `,
+    },
     // Removed: Violation with Flow suppression - the new compiler version no longer suppresses errors based on Flow comments
     {
       name: 'Unsupported syntax',
@@ -99,6 +119,58 @@ const tests: CompilerTestCases = {
     },
   ],
   invalid: [
+    // Verify rule runs when it should (using __devReturnErrorIfRun)
+    {
+      name: 'Process file with PascalCase function declaration',
+      options: [{ __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true }],
+      code: normalizeIndent`
+        function MyComponent() {
+          return null;
+        }
+      `,
+      errors: [{ message: '__devReturnErrorIfRun' }],
+    },
+    {
+      name: 'Process file with PascalCase const declaration',
+      options: [{ __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true }],
+      code: normalizeIndent`
+        const MyComponent = () => {
+          return null;
+        };
+      `,
+      errors: [{ message: '__devReturnErrorIfRun' }],
+    },
+    {
+      name: 'Process file with hook function declaration',
+      options: [{ __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true }],
+      code: normalizeIndent`
+        function useMyHook() {
+          return 1;
+        }
+      `,
+      errors: [{ message: '__devReturnErrorIfRun' }],
+    },
+    {
+      name: 'Process file with hook const declaration',
+      options: [{ __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true }],
+      code: normalizeIndent`
+        const useMyHook = () => {
+          return 1;
+        };
+      `,
+      errors: [{ message: '__devReturnErrorIfRun' }],
+    },
+    {
+      name: 'Always process .tsx files',
+      options: [{ __devOverrideFilename: 'test.tsx', __devReturnErrorIfRun: true }],
+      code: normalizeIndent`
+        function helper() {
+          return 1;
+        }
+      `,
+      errors: [{ message: '__devReturnErrorIfRun' }],
+    },
+
     {
       name: '[InvalidInput] Ref access during render',
       code: normalizeIndent`
@@ -179,6 +251,44 @@ const tests: CompilerTestCases = {
         {
           message: new RegExp(
             RegExp.escape('`count` cannot be reassigned'),
+          ),
+        },
+      ],
+    },
+
+    // Verify errors are caught in .ts files with components
+    {
+      name: 'Error in .ts file with PascalCase component',
+      options: [{ __devOverrideFilename: 'test.ts' }],
+      code: normalizeIndent`
+        function Component(props) {
+          const ref = useRef(null);
+          const value = ref.current;
+          return value;
+        }
+      `,
+      errors: [
+        {
+          message: new RegExp(
+            RegExp.escape('Cannot access ref value during render'),
+          ),
+        },
+      ],
+    },
+    {
+      name: 'Error in .ts file with hook',
+      options: [{ __devOverrideFilename: 'test.ts' }],
+      code: normalizeIndent`
+        function useCustomHook() {
+          const ref = useRef(null);
+          const value = ref.current;
+          return value;
+        }
+      `,
+      errors: [
+        {
+          message: new RegExp(
+            RegExp.escape('Cannot access ref value during render'),
           ),
         },
       ],
