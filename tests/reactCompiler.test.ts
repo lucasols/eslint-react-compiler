@@ -48,7 +48,9 @@ const tests: CompilerTestCases = {
     // Uses __devReturnErrorIfRun to verify the rule doesn't run
     {
       name: 'Skip file without components or hooks (lowercase function)',
-      options: [{ __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true }],
+      options: [
+        { __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true },
+      ],
       code: normalizeIndent`
         function helper() {
           return 1;
@@ -57,7 +59,9 @@ const tests: CompilerTestCases = {
     },
     {
       name: 'Skip file without components or hooks (arrow function)',
-      options: [{ __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true }],
+      options: [
+        { __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true },
+      ],
       code: normalizeIndent`
         const helper = () => {
           return 1;
@@ -122,7 +126,9 @@ const tests: CompilerTestCases = {
     // Verify rule runs when it should (using __devReturnErrorIfRun)
     {
       name: 'Process file with PascalCase function declaration',
-      options: [{ __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true }],
+      options: [
+        { __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true },
+      ],
       code: normalizeIndent`
         function MyComponent() {
           return null;
@@ -132,7 +138,9 @@ const tests: CompilerTestCases = {
     },
     {
       name: 'Process file with PascalCase const declaration',
-      options: [{ __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true }],
+      options: [
+        { __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true },
+      ],
       code: normalizeIndent`
         const MyComponent = () => {
           return null;
@@ -142,7 +150,9 @@ const tests: CompilerTestCases = {
     },
     {
       name: 'Process file with hook function declaration',
-      options: [{ __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true }],
+      options: [
+        { __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true },
+      ],
       code: normalizeIndent`
         function useMyHook() {
           return 1;
@@ -152,7 +162,9 @@ const tests: CompilerTestCases = {
     },
     {
       name: 'Process file with hook const declaration',
-      options: [{ __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true }],
+      options: [
+        { __devOverrideFilename: 'test.ts', __devReturnErrorIfRun: true },
+      ],
       code: normalizeIndent`
         const useMyHook = () => {
           return 1;
@@ -162,7 +174,9 @@ const tests: CompilerTestCases = {
     },
     {
       name: 'Always process .tsx files',
-      options: [{ __devOverrideFilename: 'test.tsx', __devReturnErrorIfRun: true }],
+      options: [
+        { __devOverrideFilename: 'test.tsx', __devReturnErrorIfRun: true },
+      ],
       code: normalizeIndent`
         function helper() {
           return 1;
@@ -175,6 +189,23 @@ const tests: CompilerTestCases = {
       name: '[InvalidInput] Ref access during render',
       code: normalizeIndent`
         function Component(props) {
+          const ref = useRef(null);
+          const value = ref.current;
+          return value;
+        }
+      `,
+      errors: [
+        {
+          message: new RegExp(
+            RegExp.escape('Cannot access ref value during render'),
+          ),
+        },
+      ],
+    },
+    {
+      name: '[InvalidInput] Ref access during render',
+      code: normalizeIndent`
+        const Component: React.FC<{ foo: string }> = (props) => {
           const ref = useRef(null);
           const value = ref.current;
           return value;
@@ -249,9 +280,7 @@ const tests: CompilerTestCases = {
       `,
       errors: [
         {
-          message: new RegExp(
-            RegExp.escape('`count` cannot be reassigned'),
-          ),
+          message: new RegExp(RegExp.escape('`count` cannot be reassigned')),
         },
       ],
     },
