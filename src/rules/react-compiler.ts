@@ -202,15 +202,19 @@ const rule = createRule<Options, MessageIds>({
           continue
         }
 
+        let message = detail.printErrorMessage(result.sourceCode, {
+          eslint: true,
+        })
+
+        if (message.includes('Error:')) {
+          message = message.replace('Error:', `Error(${detail.category}):`)
+        } else {
+          message = `Error(${detail.category}): ${message}`
+        }
+
         context.report({
           messageId: 'default',
-          data: {
-            message: detail
-              .printErrorMessage(result.sourceCode, {
-                eslint: true,
-              })
-              .replace('Error:', `Error(${detail.category}):`),
-          },
+          data: { message },
           loc,
           suggest: makeSuggestions(detail.suggestions),
         })
