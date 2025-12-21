@@ -121,6 +121,25 @@ const tests: CompilerTestCases = {
         }
       `,
     },
+
+    {
+      name: 'Ignore categories',
+      code: normalizeIndent`
+        import { useState } from 'react';
+        function Component() {
+          const [state, setState] = useState(0);
+          useEffect(() => {
+            setState(1);
+          }, []);
+          return state;
+        }
+      `,
+      options: [
+        {
+          ignoreCategories: ['EffectSetState'],
+        },
+      ],
+    },
   ],
   invalid: [
     // Verify rule runs when it should (using __devReturnErrorIfRun)
@@ -344,6 +363,29 @@ const tests: CompilerTestCases = {
             ),
           ),
           line: 7,
+        },
+      ],
+    },
+
+    {
+      name: 'Show error type in error message',
+      code: normalizeIndent`
+        import { useState } from 'react';
+        function Component() {
+          const [state, setState] = useState(0);
+          useEffect(() => {
+            setState(1);
+          }, []);
+          return state;
+        }
+      `,
+      errors: [
+        {
+          message: new RegExp(
+            RegExp.escape(
+              'Error(EffectSetState): Calling setState synchronously',
+            ),
+          ),
         },
       ],
     },

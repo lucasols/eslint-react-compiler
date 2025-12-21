@@ -6,7 +6,10 @@
  */
 
 import { ESLintUtils, TSESLint } from '@typescript-eslint/utils'
-import { CompilerSuggestionOperation } from 'babel-plugin-react-compiler'
+import {
+  CompilerSuggestionOperation,
+  PluginOptions,
+} from 'babel-plugin-react-compiler'
 import { RunCacheEntry, runReactCompiler } from '../shared/runReactCompiler'
 
 type RuleFixer = TSESLint.RuleFixer
@@ -80,29 +83,20 @@ type Options = [
      * Defaults to empty (report all levels).
      */
     ignoreReportLevels?: ('Error' | 'Warning' | 'Hint' | 'Off')[]
+    ignoreCategories?: string[]
     __devOverrideFilename?: string
     __devReturnErrorIfRun?: boolean
+    advancedOptions?: Partial<PluginOptions>
   },
 ]
 
 function getReactCompilerResult(
-  context: Parameters<
-    ReturnType<typeof createRule<Options, MessageIds>>['create']
-  >[0],
+  sourceCode: { text: string },
+  filename: string,
+  babelParserPlugins: string[] | undefined,
+  babelPlugins: (string | [string, unknown])[] | undefined,
+  userOpts: Partial<PluginOptions>,
 ): RunCacheEntry {
-  const sourceCode = context.sourceCode ?? context.getSourceCode()
-  const filename = context.filename ?? context.getFilename()
-  const opts = context.options[0] ?? {}
-  // eslint rule options - not passed to the compiler
-  const {
-    babelParserPlugins,
-    babelPlugins,
-    ignoreReportLevels: _,
-    __devOverrideFilename: __,
-    __devReturnErrorIfRun: ___,
-    ...userOpts
-  } = opts
-
   return runReactCompiler({
     sourceCode,
     filename,
@@ -161,10 +155,7 @@ const rule = createRule<Options, MessageIds>({
   },
   create(context) {
     const userOpts = context.options[0] ?? {}
-    const filename =
-      userOpts.__devOverrideFilename ??
-      context.filename ??
-      context.getFilename()
+    const filename = userOpts.__devOverrideFilename ?? context.filename
 
     if (!filename.endsWith('.tsx')) {
       const sourceCode = context.sourceCode ?? context.getSourceCode()
@@ -183,8 +174,15 @@ const rule = createRule<Options, MessageIds>({
     }
 
     const ignoreReportLevels = new Set(userOpts.ignoreReportLevels ?? [])
+    const ignoreCategories = new Set(userOpts.ignoreCategories ?? [])
 
-    const result = getReactCompilerResult(context)
+    const result = getReactCompilerResult(
+      context.sourceCode,
+      filename,
+      userOpts.babelParserPlugins,
+      userOpts.babelPlugins,
+      userOpts.advancedOptions ?? {},
+    )
 
     for (const event of result.events) {
       if (event.kind === 'CompileError') {
@@ -200,12 +198,18 @@ const rule = createRule<Options, MessageIds>({
           continue
         }
 
+        if (ignoreCategories.has(detail.category)) {
+          continue
+        }
+
         context.report({
           messageId: 'default',
           data: {
-            message: detail.printErrorMessage(result.sourceCode, {
-              eslint: true,
-            }),
+            message: detail
+              .printErrorMessage(result.sourceCode, {
+                eslint: true,
+              })
+              .replace('Error:', `Error(${detail.category}):`),
           },
           loc,
           suggest: makeSuggestions(detail.suggestions),
