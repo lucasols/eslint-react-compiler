@@ -20,33 +20,34 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-explicit-resource-management": "^7.25.9",
-    "@babel/types": "^7.26.0",
-    "@ls-stack/babel-plugin-react-compiler-unsupported-syntax": "^0.2.3",
-    "@ls-stack/utils": "^2.0.1",
+    "@babel/plugin-proposal-explicit-resource-management": "^7.27.4",
+    "@babel/types": "^7.28.5",
+    "@ls-stack/babel-plugin-react-compiler-unsupported-syntax": "^0.7.0",
+    "@ls-stack/utils": "^3.63.0",
     "@types/babel__core": "^7.20.5",
     "@types/eslint": "^9.6.1",
-    "@types/node": "^22.9.3",
-    "@typescript-eslint/parser": "^8.15.0",
-    "@typescript-eslint/rule-tester": "^8.15.0",
-    "@vitest/ui": "^2.1.5",
-    "babel-plugin-react-compiler": "^19.0.0-beta-a7bf2bd-20241110",
+    "@types/node": "^25.0.3",
+    "@typescript-eslint/parser": "^8.50.0",
+    "@typescript-eslint/rule-tester": "^8.50.0",
+    "@vitest/ui": "^4.0.16",
+    "babel-plugin-react-compiler": "^1.0.0",
     "escape-string-regexp": "^5.0.0",
-    "eslint": "^9.15.0",
+    "eslint": "^9.39.2",
     "tsm": "^2.3.0",
-    "tsup": "^8.3.5",
-    "typescript": "^5.7.2",
-    "vite": "^5.4.11",
-    "vitest": "^2.1.5"
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0",
+    "vitest": "^4.0.16"
   },
   "dependencies": {
-    "@babel/core": "^7.26.0",
-    "@typescript-eslint/utils": "^8.15.0",
-    "espree": "^10.3.0",
+    "@babel/core": "^7.28.5",
+    "@babel/parser": "^7.28.5",
+    "@typescript-eslint/utils": "^8.50.0",
+    "espree": "^11.0.0",
     "esutils": "^2.0.3"
   },
   "peerDependencies": {
-    "babel-plugin-react-compiler": "*",
-    "eslint": "^9.9.1"
+    "babel-plugin-react-compiler": "^1.0.0",
+    "eslint": "^9.39.2"
   }
 }
