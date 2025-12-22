@@ -389,6 +389,26 @@ const tests: CompilerTestCases = {
         },
       ],
     },
+
+    {
+      name: 'Report TODOs, as errors',
+      code: normalizeIndent`
+        function Foo({value}) {
+          const result = bar();
+          function bar() {
+            return {value};
+          }
+          return <Stringify result={result} fn={bar} shouldInvokeFns={true} />;
+        }
+      `,
+      errors: [
+        {
+          message: new RegExp(
+            RegExp.escape('Error(Error_Todo): Todo: [PruneHoistedContexts'),
+          ),
+        },
+      ],
+    },
   ],
 }
 

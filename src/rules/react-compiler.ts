@@ -8,6 +8,7 @@
 import { ESLintUtils, TSESLint } from '@typescript-eslint/utils'
 import {
   CompilerSuggestionOperation,
+  ErrorSeverity,
   PluginOptions,
 } from 'babel-plugin-react-compiler'
 import { RunCacheEntry, runReactCompiler } from '../shared/runReactCompiler'
@@ -189,12 +190,15 @@ const rule = createRule<Options, MessageIds>({
         const detail = event.detail
         const loc = detail.primaryLocation()
 
+        const severity =
+          detail.category === 'Todo' ? ErrorSeverity.Error : detail.severity
+
         if (loc == null || typeof loc === 'symbol') {
           continue
         }
 
         // Skip ignored severity levels
-        if (ignoreReportLevels.has(detail.severity)) {
+        if (ignoreReportLevels.has(severity)) {
           continue
         }
 
@@ -209,7 +213,7 @@ const rule = createRule<Options, MessageIds>({
         if (message.includes('Error:')) {
           message = message.replace('Error:', `Error(${detail.category}):`)
         } else {
-          message = `Error(${detail.category}): ${message}`
+          message = `Error(${severity}_${detail.category}): ${message}`
         }
 
         context.report({
