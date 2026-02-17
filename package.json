@@ -15,7 +15,7 @@
   ],
   "repository": "github:lucaslos/eslint-react-compiler",
   "author": "Lucas Santos",
-  "main": "./dist/main.js",
+  "main": "./dist/main.mjs",
   "engines": {
     "node": ">=20.0.0"
   },
