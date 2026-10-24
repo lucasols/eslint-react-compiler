@@ -17,6 +17,13 @@ The main difference from the original is the ability to pass `babelPlugins` and 
 - **Build without tests**: `pnpm build:no-test`
 - **Pre-publish check**: `pnpm pre-publish`
 
+## Git and Publishing Workflow
+
+These are pre-approved, do them without asking the user for confirmation:
+
+- Always deliver changes through a pull request: create a branch from `main`, commit, push and open the PR with `gh pr create`. Never commit directly to `main`
+- Publish packages only from `main`, after the PR with the changes is merged: switch to an up-to-date `main` and run `pkg-manager publish --type <patch|minor|major>` from the repo root
+
 ## Architecture
 
 ### Entry Point
